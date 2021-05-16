@@ -438,5 +438,16 @@
     "redeembable": false,
     "keywords": ["BitPortrait"],
     "type": "IMAGE"
+  },
+  {
+  "img": "https://gateway.pinata.cloud/ipfs/QmRmY11ifSBTJRgL1n8EmJAysePKAguXiyQJMdFTQ1mMjV",
+  "imgSmall": "https://gateway.pinata.cloud/ipfs/QmRmY11ifSBTJRgL1n8EmJAysePKAguXiyQJMdFTQ1mMjV",
+  "name": "8x",
+  "supply": 1,
+  "mintAddress": "A2dz3PboiPoGs8dEVHFXiMfEqvpx6cWZkicB1oKaHoDC",
+  "marketAddress": "BaXYNJJJhgMxHyNBum4gybTcedpFL13fksn4msyoWTn7",
+  "redeembable": false,
+  "keywords": ["8x", "city", "zone"],
+  "type": "VIDEO"
   }
 ]
