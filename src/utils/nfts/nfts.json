@@ -512,5 +512,19 @@
     "MOLAMON"
   ],
   "type": "VIDEO"
-}
+  },
+  {
+  "img": "https://gateway.pinata.cloud/ipfs/QmUhy9Nrv5fopH1zQJzQLxB2UCnzHkHhbPiRuwNYaSCD1v",
+  "imgSmall": "https://gateway.pinata.cloud/ipfs/QmXtSu3HwfP4fc7bsXDWMmEwVtnF1ChDUqF8XTXjd3jX9j",
+  "name": "Media Tiger",
+  "supply": 5,
+  "mintAddress": "74XpPjLE5upghiSjYV4es2U9UbKsRUKDhUgeAGv6ypi8",
+  "marketAddress": "HjJKxqaZL9RfqAUrB583QSq9HFXAbe5PGbq64LQv5EYB",
+  "redeembable": false,
+  "keywords": [
+    "Media",
+    "Tiger"
+  ],
+  "type": "VIDEO"
+  }
 ]
