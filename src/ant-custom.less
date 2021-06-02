@@ -1,4 +1,309 @@
 @import '~antd/dist/antd.css';
 @import '~antd/dist/antd.dark.less';
-@primary-color: #2abdd2;
+@primary-color: #4747f0;
 @popover-background: #1a2029;
+
+.homepage-title {
+  padding-top: 20px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 54px;
+  font-size: 46px;
+  text-align: center;
+  background: -webkit-linear-gradient(313.64deg, #4747f0 -2.56%, #ffffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.nft-panel-display {
+  position: absolute;
+  width: 1128px;
+  height: 684px;
+  left: 156px;
+  top: 404px;
+
+  background: linear-gradient(
+      180deg,
+      rgba(128, 128, 255, 0.1) 5.02%,
+      rgba(52, 52, 255, 0.1) 126.55%
+    ),
+    linear-gradient(
+      90.88deg,
+      rgba(27, 36, 82, 0.1) 16.48%,
+      rgba(18, 24, 55, 0.1) 53.87%,
+      rgba(10, 13, 31, 0.1) 92.04%
+    );
+  backdrop-filter: blur(8px);
+
+  border-radius: 2px;
+}
+
+.btn-explore-marketplace {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 16px;
+
+  position: absolute;
+  width: 229px;
+  height: 40px;
+
+  background: linear-gradient(45.62deg, #4747f0 0%, #8080ff 101.09%);
+
+  box-shadow: 0px 2px 0px rgba(0, 0, 0, 0.043);
+  border-radius: 2px;
+
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.homepage-subtitle {
+  font-weight: normal;
+  font-size: 30px;
+  text-align: center;
+}
+
+.nft-panel {
+  width: 1400px;
+  padding: 30px;
+  background: linear-gradient(
+      180deg,
+      rgba(128, 128, 255, 0.1) 5.02%,
+      rgba(52, 52, 255, 0.1) 126.55%
+    ),
+    linear-gradient(
+      90.88deg,
+      rgba(27, 36, 82, 0.1) 16.48%,
+      rgba(18, 24, 55, 0.1) 53.87%,
+      rgba(10, 13, 31, 0.1) 92.04%
+    );
+  backdrop-filter: blur(8px);
+
+  border-radius: 2px;
+}
+
+.nft-card {
+  width: 312px;
+  height: 450px;
+
+  cursor: pointer;
+
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: scale(1.02);
+  }
+
+  background: linear-gradient(
+      180deg,
+      rgba(128, 128, 255, 0.2) 5.02%,
+      rgba(52, 52, 255, 0.2) 126.55%
+    ),
+    linear-gradient(
+      90.88deg,
+      rgba(27, 36, 82, 0.2) 16.48%,
+      rgba(18, 24, 55, 0.2) 53.87%,
+      rgba(10, 13, 31, 0.2) 92.04%
+    );
+  border-radius: 2px;
+  position: relative;
+
+  img {
+    height: 300px;
+    width: 312px;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+  }
+
+  video {
+    height: auto;
+    width: 100%;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+  }
+
+  .bottom {
+    position: relative;
+    top: 330px;
+  }
+
+  .text-bold {
+    font-weight: bold;
+  }
+  .text-light {
+    color: rgba(255, 255, 255, 0.6);
+  }
+}
+
+.redeemable-tag {
+  background: linear-gradient(225deg, #d07d7a 0%, #d05651 100%);
+  border-radius: 10px;
+  font-weight: 12px;
+  width: 100px;
+  text-align: center;
+  position: relative;
+  top: 10px;
+  left: 15px;
+  z-index: 1;
+}
+
+.button-view-more {
+  text-transform: uppercase;
+  color: #b3b3ff;
+  font-size: 16px;
+  border-color: #b3b3ff;
+}
+
+.explore-page-title {
+  font-weight: normal;
+  font-size: 30px;
+}
+
+.owned-tag {
+  border-radius: 16px;
+  font-size: 14px;
+  background: linear-gradient(45deg, #90d0a5 0%, #51d07b 100%);
+  color: #1b2452;
+  font-weight: 12px;
+  width: 120px;
+  text-align: center;
+  position: relative;
+  top: 10px;
+  left: 15px;
+  z-index: 1;
+}
+
+.trade-panel {
+  width: 1128px;
+  height: 658px;
+  background: linear-gradient(
+      180deg,
+      rgba(128, 128, 255, 0.2) 5.02%,
+      rgba(52, 52, 255, 0.2) 126.55%
+    ),
+    linear-gradient(
+      90.88deg,
+      rgba(27, 36, 82, 0.2) 16.48%,
+      rgba(18, 24, 55, 0.2) 53.87%,
+      rgba(10, 13, 31, 0.2) 92.04%
+    );
+  border-radius: 2px;
+
+  img {
+    // max-width: 360px;
+    // max-height: 469px;
+    max-width: 500px;
+  }
+
+  .line {
+    max-width: 1080px;
+    height: 1px;
+    width: auto;
+    background: linear-gradient(313.64deg, #4747f0 -2.56%, #ffffff 100%);
+    margin: auto;
+  }
+
+  .buy-button {
+    background: linear-gradient(45.62deg, #4747f0 0%, #8080ff 101.09%);
+    box-shadow: 0px 2px 0px rgba(0, 0, 0, 0.043);
+    border-radius: 2px;
+    width: 250px;
+    height: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 5px 16px;
+    color: white;
+    text-transform: uppercase;
+  }
+
+  .title {
+    margin-left: 25px;
+    margin-top: 30px;
+    font-weight: 500;
+    font-size: 24px;
+    color: white;
+  }
+
+  .trade-form-label {
+    font-weight: 600;
+    font-size: 16px;
+  }
+  .trade-form-description {
+    font-weight: normal;
+    font-size: 16px;
+  }
+
+  .button-place-bid {
+    color: #b3b3ff;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    border-color: #b3b3ff;
+  }
+}
+
+.more-nfts {
+  font-weight: normal;
+  font-size: 20px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.ant-btn-primary {
+  background-color: transparent;
+  &:hover {
+    background-color: #4747f0;
+    border-color: #4747f0;
+  }
+  &:focus {
+    background-color: #4747f0;
+    border-color: #4747f0;
+  }
+  border-color: #4747f0;
+}
+
+.redeem-form {
+  background: linear-gradient(
+      180deg,
+      rgba(128, 128, 255, 0.2) 5.02%,
+      rgba(52, 52, 255, 0.2) 126.55%
+    ),
+    linear-gradient(
+      90.88deg,
+      rgba(27, 36, 82, 0.2) 16.48%,
+      rgba(18, 24, 55, 0.2) 53.87%,
+      rgba(10, 13, 31, 0.2) 92.04%
+    );
+  border-radius: 2px;
+  max-width: 700px;
+  padding: 30;
+
+  .buy-button {
+    background: linear-gradient(45.62deg, #4747f0 0%, #8080ff 101.09%);
+    box-shadow: 0px 2px 0px rgba(0, 0, 0, 0.043);
+    border-radius: 2px;
+    width: 250px;
+    height: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 5px 16px;
+    color: white;
+    text-transform: uppercase;
+  }
+  .title {
+    font-weight: 500;
+    font-size: 24px;
+  }
+  img {
+    height: 300px;
+  }
+}
+
+@switch-color: #4747f0;

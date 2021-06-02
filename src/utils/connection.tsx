@@ -1,14 +1,20 @@
 import { useLocalStorageState } from './utils';
 import { Account, AccountInfo, Connection, PublicKey } from '@solana/web3.js';
-import React, { useContext, useEffect, useMemo } from 'react';
+import React, { useContext, useEffect, useMemo, useRef } from 'react';
 import { setCache, useAsyncData } from './fetch-loop';
 import tuple from 'immutable-tuple';
 import { ConnectionContextValues, EndpointInfo } from './types';
+
+export const MAINNET_ENDPOINT = 'https://solana-api.projectserum.com';
 
 export const ENDPOINTS: EndpointInfo[] = [
   {
     name: 'mainnet-beta',
     endpoint: 'https://solana-api.projectserum.com',
+    // endpoint: 'https://api.mainnet-beta.solana.com',
+    // endpoint:
+    //   'http://ec2-52-194-187-6.ap-northeast-1.compute.amazonaws.com:8899/',
+
     custom: false,
   },
   { name: 'localnet', endpoint: 'http://127.0.0.1:8899', custom: false },
@@ -137,14 +143,15 @@ export function useAccountInfo(
       let currentItem = accountListenerCount.get(cacheKey);
       ++currentItem.count;
     } else {
-      let previousData: Buffer | null = null;
-      const subscriptionId = connection.onAccountChange(publicKey, (e) => {
-        if (e.data) {
-          if (!previousData || !previousData.equals(e.data)) {
-            setCache(cacheKey, e);
-          } else {
-          }
-          previousData = e.data;
+      let previousInfo: AccountInfo<Buffer> | null = null;
+      const subscriptionId = connection.onAccountChange(publicKey, (info) => {
+        if (
+          !previousInfo ||
+          !previousInfo.data.equals(info.data) ||
+          previousInfo.lamports !== info.lamports
+        ) {
+          previousInfo = info;
+          setCache(cacheKey, info);
         }
       });
       accountListenerCount.set(cacheKey, { count: 1, subscriptionId });
@@ -161,7 +168,16 @@ export function useAccountInfo(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheKey]);
-  return [accountInfo, loaded];
+  const previousInfoRef = useRef<AccountInfo<Buffer> | null | undefined>(null);
+  if (
+    !accountInfo ||
+    !previousInfoRef.current ||
+    !previousInfoRef.current.data.equals(accountInfo.data) ||
+    previousInfoRef.current.lamports !== accountInfo.lamports
+  ) {
+    previousInfoRef.current = accountInfo;
+  }
+  return [previousInfoRef.current, loaded];
 }
 
 export function useAccountData(publicKey) {

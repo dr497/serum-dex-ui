@@ -6,9 +6,12 @@ import {
   parseTokenAccountData,
   parseTokenMintData,
 } from '../../../utils/tokens';
-import { Spin, Tabs } from 'antd';
+import { Button, Spin, Tabs } from 'antd';
 import FloatingElement from '../../../components/layout/FloatingElement';
 import { useTokenAccounts } from '../../../utils/markets';
+import { MintName } from '../../../components/MintName';
+import { LinkOutlined } from '@ant-design/icons';
+import { WRAPPED_SOL_MINT } from '@project-serum/serum/lib/token-instructions';
 
 const { TabPane } = Tabs;
 
@@ -50,6 +53,7 @@ function WalletBalancesTab({ poolInfo }: { poolInfo: PoolInfo }) {
             key={index}
             mint={mint}
             publicKey={tokenAccount.pubkey}
+            isPoolToken={mint.equals(poolInfo.state.poolTokenMint)}
           />
         );
       })}
@@ -76,21 +80,42 @@ function PoolBalancesTab({ poolInfo }: { poolInfo: PoolInfo }) {
 interface BalanceItemProps {
   mint: PublicKey;
   publicKey: PublicKey;
+  isPoolToken?: boolean;
 }
 
-function BalanceItem({ mint, publicKey }: BalanceItemProps) {
+function BalanceItem({ mint, publicKey, isPoolToken }: BalanceItemProps) {
   const [mintAccountInfo] = useAccountInfo(mint);
   const [balanceAccountInfo] = useAccountInfo(publicKey);
   let quantityDisplay = <Spin size="small" />;
   if (mintAccountInfo && balanceAccountInfo) {
     const mintInfo = parseTokenMintData(mintAccountInfo.data);
-    const accountInfo = parseTokenAccountData(balanceAccountInfo.data);
-    quantityDisplay = <>{accountInfo.amount / 10 ** mintInfo.decimals}</>;
+    if (mint.equals(WRAPPED_SOL_MINT)) {
+      quantityDisplay = (
+        <>{balanceAccountInfo.lamports / 10 ** mintInfo.decimals}</>
+      );
+    } else {
+      const accountInfo = parseTokenAccountData(balanceAccountInfo.data);
+      quantityDisplay = <>{accountInfo.amount / 10 ** mintInfo.decimals}</>;
+    }
   }
 
   return (
     <li>
-      {quantityDisplay} {mint.toBase58()} {publicKey.toBase58()}
+      {quantityDisplay}{' '}
+      {isPoolToken ? (
+        <>
+          Pool Token (<MintName mint={mint} />)
+        </>
+      ) : (
+        <MintName mint={mint} />
+      )}{' '}
+      <Button
+        type="link"
+        icon={<LinkOutlined />}
+        href={'https://explorer.solana.com/address/' + publicKey.toBase58()}
+        target="_blank"
+        rel="noopener noreferrer"
+      />
     </li>
   );
 }

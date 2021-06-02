@@ -27,13 +27,17 @@ export function notify({
     );
   }
   notification[type]({
-    message: <span style={{ color: 'black' }}>{message}</span>,
+    message: <span style={{ color: '#FFFFFF' }}>{message}</span>,
     description: (
-      <span style={{ color: 'black', opacity: 0.5 }}>{description}</span>
+      <span style={{ color: 'color: rgba(255, 255, 255, 0.6)' }}>
+        {description}
+      </span>
     ),
     placement,
     style: {
-      backgroundColor: 'white',
+      backgroundColor: '#0a0d1f',
+      boxShadow:
+        '0px 3px 6px -4px rgba(0, 0, 0, 0.12), 0px 6px 16px rgba(0, 0, 0, 0.08), 0px 9px 28px 8px rgba(0, 0, 0, 0.05)',
     },
   });
 }

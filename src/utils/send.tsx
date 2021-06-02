@@ -4,9 +4,11 @@ import { getSelectedTokenAccountForMint } from './markets';
 import {
   Account,
   AccountInfo,
+  Commitment,
   Connection,
   PublicKey,
   RpcResponseAndContext,
+  SimulatedTransactionResponse,
   SystemProgram,
   Transaction,
   TransactionSignature,
@@ -329,6 +331,7 @@ export async function placeOrder({
   wallet,
   baseCurrencyAccount,
   quoteCurrencyAccount,
+  feeDiscountPubkey = undefined,
 }: {
   side: 'buy' | 'sell';
   price: number;
@@ -339,6 +342,7 @@ export async function placeOrder({
   wallet: Wallet;
   baseCurrencyAccount: PublicKey | undefined;
   quoteCurrencyAccount: PublicKey | undefined;
+  feeDiscountPubkey: PublicKey | undefined;
 }) {
   let formattedMinOrderSize =
     market?.minOrderSize?.toFixed(getDecimalCount(market.minOrderSize)) ||
@@ -435,20 +439,24 @@ export async function placeOrder({
     price,
     size,
     orderType,
+    feeDiscountPubkey: feeDiscountPubkey || null,
   };
   console.log(params);
 
   const matchOrderstransaction = market.makeMatchOrdersTransaction(5);
   transaction.add(matchOrderstransaction);
+  const startTime = getUnixTs();
   let {
     transaction: placeOrderTx,
     signers: placeOrderSigners,
   } = await market.makePlaceOrderTransaction(
     connection,
     params,
-    10_000,
-    10_000,
+    120_000,
+    120_000,
   );
+  const endTime = getUnixTs();
+  console.log(`Creating order transaction took ${endTime - startTime}`);
   transaction.add(placeOrderTx);
   transaction.add(market.makeMatchOrdersTransaction(5));
   signers.push(...placeOrderSigners);
@@ -591,20 +599,17 @@ export async function listMarket({
     }),
   );
 
-  const signedTransactions = await Promise.all([
-    signTransaction({
-      transaction: tx1,
-      wallet,
-      connection,
-      signers: [baseVault, quoteVault],
-    }),
-    signTransaction({
-      transaction: tx2,
-      wallet,
-      connection,
-      signers: [market, requestQueue, eventQueue, bids, asks],
-    }),
-  ]);
+  const signedTransactions = await signTransactions({
+    transactionsAndSigners: [
+      { transaction: tx1, signers: [baseVault, quoteVault] },
+      {
+        transaction: tx2,
+        signers: [market, requestQueue, eventQueue, bids, asks],
+      },
+    ],
+    wallet,
+    connection,
+  });
   for (let signedTransaction of signedTransactions) {
     await sendSignedTransaction({
       signedTransaction,
@@ -615,7 +620,7 @@ export async function listMarket({
   return market.publicKey;
 }
 
-const getUnixTs = () => {
+export const getUnixTs = () => {
   return new Date().getTime() / 1000;
 };
 
@@ -677,6 +682,34 @@ export async function signTransaction({
   return await wallet.signTransaction(transaction);
 }
 
+export async function signTransactions({
+  transactionsAndSigners,
+  wallet,
+  connection,
+}: {
+  transactionsAndSigners: {
+    transaction: Transaction;
+    signers?: Array<Account>;
+  }[];
+  wallet: Wallet;
+  connection: Connection;
+}) {
+  const blockhash = (await connection.getRecentBlockhash('max')).blockhash;
+  transactionsAndSigners.forEach(({ transaction, signers = [] }) => {
+    transaction.recentBlockhash = blockhash;
+    transaction.setSigners(
+      wallet.publicKey,
+      ...signers.map((s) => s.publicKey),
+    );
+    if (signers?.length > 0) {
+      transaction.partialSign(...signers);
+    }
+  });
+  return await wallet.signAllTransactions(
+    transactionsAndSigners.map(({ transaction }) => transaction),
+  );
+}
+
 export async function sendSignedTransaction({
   signedTransaction,
   connection,
@@ -719,6 +752,25 @@ export async function sendSignedTransaction({
   } catch (err) {
     if (err.timeout) {
       throw new Error('Timed out awaiting confirmation on transaction');
+    }
+    let simulateResult: SimulatedTransactionResponse | null = null;
+    try {
+      simulateResult = (
+        await simulateTransaction(connection, signedTransaction, 'single')
+      ).value;
+    } catch (e) {}
+    if (simulateResult && simulateResult.err) {
+      if (simulateResult.logs) {
+        for (let i = simulateResult.logs.length - 1; i >= 0; --i) {
+          const line = simulateResult.logs[i];
+          if (line.startsWith('Program log: ')) {
+            throw new Error(
+              'Transaction failed: ' + line.slice('Program log: '.length),
+            );
+          }
+        }
+      }
+      throw new Error(JSON.stringify(simulateResult.err));
     }
     throw new Error('Transaction failed');
   } finally {
@@ -902,4 +954,31 @@ export async function getMultipleSolanaAccounts(
       accounts.map((account, i) => [publicKeys[i].toBase58(), account]),
     ),
   };
+}
+
+/** Copy of Connection.simulateTransaction that takes a commitment parameter. */
+async function simulateTransaction(
+  connection: Connection,
+  transaction: Transaction,
+  commitment: Commitment,
+): Promise<RpcResponseAndContext<SimulatedTransactionResponse>> {
+  // @ts-ignore
+  transaction.recentBlockhash = await connection._recentBlockhash(
+    // @ts-ignore
+    connection._disableBlockhashCaching,
+  );
+
+  const signData = transaction.serializeMessage();
+  // @ts-ignore
+  const wireTransaction = transaction._serialize(signData);
+  const encodedTransaction = wireTransaction.toString('base64');
+  const config: any = { encoding: 'base64', commitment };
+  const args = [encodedTransaction, config];
+
+  // @ts-ignore
+  const res = await connection._rpcRequest('simulateTransaction', args);
+  if (res.error) {
+    throw new Error('failed to simulate transaction: ' + res.error.message);
+  }
+  return res.result;
 }

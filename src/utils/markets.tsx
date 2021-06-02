@@ -4,7 +4,7 @@ import {
   MARKETS,
   OpenOrders,
   Orderbook,
-  TOKEN_MINTS,
+  TOKEN_MINTS as OFFICIAL_TOKENS,
   TokenInstructions,
 } from '@project-serum/serum';
 import { PublicKey } from '@solana/web3.js';
@@ -41,20 +41,38 @@ import {
 import { WRAPPED_SOL_MINT } from '@project-serum/serum/lib/token-instructions';
 import { Order } from '@project-serum/serum/lib/market';
 import BonfidaApi from './bonfidaConnector';
+import { getNftList } from './nfts';
 
 // Used in debugging, should be false in production
 const _IGNORE_DEPRECATED = false;
 
-const USE_MARKETS: MarketInfo[] = _IGNORE_DEPRECATED
+export let USE_MARKETS: MarketInfo[] = _IGNORE_DEPRECATED
   ? MARKETS.map((m) => ({ ...m, deprecated: false }))
   : MARKETS;
+
+let TOKEN_MINTS = OFFICIAL_TOKENS;
+
+getNftList().forEach((nft) => {
+  USE_MARKETS.push({
+    name: nft.name,
+    address: nft.marketAddress,
+    programId: new PublicKey('9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin'),
+    deprecated: false,
+  });
+  TOKEN_MINTS.push({
+    name: nft.name,
+    address: nft.mintAddress,
+  });
+});
 
 export function useMarketsList() {
   return USE_MARKETS.filter(({ deprecated }) => !deprecated);
 }
 
-export function useAllMarkets(customMarkets) {
+export function useAllMarkets() {
   const connection = useConnection();
+  const { customMarkets } = useCustomMarkets();
+  const [time, setTime] = useState(new Date().getTime());
 
   const getAllMarkets = async () => {
     const markets: Array<{
@@ -75,12 +93,16 @@ export function useAllMarkets(customMarkets) {
             marketName: marketInfo.name,
             programId: marketInfo.programId,
           };
-        } catch (e) {
-          notify({
-            message: 'Error loading all market',
-            description: e.message,
-            type: 'error',
-          });
+        } catch (err) {
+          const now = new Date().getTime();
+          if (now - time > 60 * 1_000) {
+            notify({
+              message: 'Error loading all market',
+              description: err.message,
+              type: 'error',
+            });
+          }
+          console.warn(`Error loading all markets - ${err.message}`);
           return null;
         }
       }),
@@ -212,14 +234,15 @@ export function getMarketDetails(
   };
 }
 
-export function MarketProvider({ children }) {
-  const [marketAddress, setMarketAddress] = useLocalStorageState(
-    'marketAddress',
-    DEFAULT_MARKET?.address.toBase58(),
-  );
+export function useCustomMarkets() {
   const [customMarkets, setCustomMarkets] = useLocalStorageState<
     CustomMarketInfo[]
   >('customMarkets', []);
+  return { customMarkets, setCustomMarkets };
+}
+
+export function MarketProvider({ marketAddress, setMarketAddress, children }) {
+  const { customMarkets, setCustomMarkets } = useCustomMarkets();
 
   const address = marketAddress && new PublicKey(marketAddress);
   const connection = useConnection();
@@ -282,6 +305,17 @@ export function MarketProvider({ children }) {
       {children}
     </MarketContext.Provider>
   );
+}
+
+export function getTradePageUrl(marketAddress?: string) {
+  if (!marketAddress) {
+    const saved = localStorage.getItem('marketAddress');
+    if (saved) {
+      marketAddress = JSON.parse(saved);
+    }
+    marketAddress = marketAddress || DEFAULT_MARKET?.address.toBase58() || '';
+  }
+  return `/market/${marketAddress}`;
 }
 
 export function useSelectedTokenAccounts(): [
@@ -555,6 +589,22 @@ export function useTrades(limit = 100) {
     }));
 }
 
+export function useLocallyStoredFeeDiscountKey(): {
+  storedFeeDiscountKey: PublicKey | undefined;
+  setStoredFeeDiscountKey: (key: string) => void;
+} {
+  const [
+    storedFeeDiscountKey,
+    setStoredFeeDiscountKey,
+  ] = useLocalStorageState<string>(`feeDiscountKey`, undefined);
+  return {
+    storedFeeDiscountKey: storedFeeDiscountKey
+      ? new PublicKey(storedFeeDiscountKey)
+      : undefined,
+    setStoredFeeDiscountKey,
+  };
+}
+
 export function useFeeDiscountKeys(): [
   (
     | {
@@ -571,15 +621,23 @@ export function useFeeDiscountKeys(): [
   const { market } = useMarket();
   const { connected, wallet } = useWallet();
   const connection = useConnection();
-  async function getFeeDiscountKeys() {
+  const { setStoredFeeDiscountKey } = useLocallyStoredFeeDiscountKey();
+  let getFeeDiscountKeys = async () => {
     if (!connected) {
       return null;
     }
     if (!market) {
       return null;
     }
-    return await market.findFeeDiscountKeys(connection, wallet.publicKey);
-  }
+    const feeDiscountKey = await market.findFeeDiscountKeys(
+      connection,
+      wallet.publicKey,
+    );
+    if (feeDiscountKey) {
+      setStoredFeeDiscountKey(feeDiscountKey[0].pubkey.toBase58());
+    }
+    return feeDiscountKey;
+  };
   return useAsyncData(
     getFeeDiscountKeys,
     tuple('getFeeDiscountKeys', wallet, market, connected),
@@ -611,8 +669,7 @@ export function useFillsForAllMarkets(limit = 100) {
   const { connected, wallet } = useWallet();
 
   const connection = useConnection();
-  // todo: add custom markets
-  const allMarkets = useAllMarkets([]);
+  const allMarkets = useAllMarkets();
 
   async function getFillsForAllMarkets() {
     let fills: Trade[] = [];
@@ -667,8 +724,7 @@ export function useFillsForAllMarkets(limit = 100) {
 export function useAllOpenOrdersAccounts() {
   const { wallet, connected } = useWallet();
   const connection = useConnection();
-  const { customMarkets } = useMarket();
-  const marketInfos = getMarketInfos(customMarkets);
+  const marketInfos = useMarketInfos();
   const programIds = [
     ...new Set(marketInfos.map((info) => info.programId.toBase58())),
   ].map((stringProgramId) => new PublicKey(stringProgramId));
@@ -692,7 +748,7 @@ export function useAllOpenOrdersAccounts() {
       connection,
       connected,
       wallet?.publicKey?.toBase58(),
-      customMarkets.length,
+      marketInfos.length,
       (programIds || []).length,
     ),
     { refreshInterval: _SLOW_REFRESH_INTERVAL },
@@ -705,8 +761,7 @@ export function useAllOpenOrdersBalances() {
     loadedOpenOrdersAccounts,
   ] = useAllOpenOrdersAccounts();
   const [mintInfos, mintInfosConnected] = useMintInfos();
-  const { customMarkets } = useMarket();
-  const [allMarkets] = useAllMarkets(customMarkets);
+  const [allMarkets] = useAllMarkets();
   if (!loadedOpenOrdersAccounts || !mintInfosConnected) {
     return {};
   }
@@ -772,8 +827,7 @@ export function useAllOpenOrders(): {
     openOrdersAccounts,
     openOrdersAccountsConnected,
   ] = useAllOpenOrdersAccounts();
-  const { customMarkets } = useMarket();
-  const [marketInfos, marketInfosConnected] = useAllMarkets(customMarkets);
+  const [marketInfos, marketInfosConnected] = useAllMarkets();
   const openOrdersAccountsByAddress: {
     [marketAddress: string]: OpenOrders[];
   } = {};
@@ -992,10 +1046,7 @@ export function useGetOpenOrdersForDeprecatedMarkets(): {
   refreshOpenOrders: () => void;
 } {
   const { connected, wallet } = useWallet();
-  const [customMarkets] = useLocalStorageState<CustomMarketInfo[]>(
-    'customMarkets',
-    [],
-  );
+  const { customMarkets } = useCustomMarkets();
   const connection = useConnection();
   const marketsAndOrders = useUnmigratedDeprecatedMarkets();
   const marketsList =
@@ -1140,7 +1191,7 @@ export function getMarketInfos(
 }
 
 export function useMarketInfos() {
-  const { customMarkets } = useMarket();
+  const { customMarkets } = useCustomMarkets();
   return getMarketInfos(customMarkets);
 }
 

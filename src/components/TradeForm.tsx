@@ -8,7 +8,7 @@ import {
   useMarkPrice,
   useSelectedOpenOrdersAccount,
   useSelectedBaseCurrencyAccount,
-  useSelectedQuoteCurrencyAccount,
+  useSelectedQuoteCurrencyAccount, useFeeDiscountKeys, useLocallyStoredFeeDiscountKey,
 } from '../utils/markets';
 import { useWallet } from '../utils/wallet';
 import { notify } from '../utils/notifications';
@@ -19,7 +19,7 @@ import {
 } from '../utils/utils';
 import { useSendConnection } from '../utils/connection';
 import FloatingElement from './layout/FloatingElement';
-import { placeOrder } from '../utils/send';
+import { getUnixTs, placeOrder } from '../utils/send';
 import { SwitchChangeEventHandler } from 'antd/es/switch';
 import { refreshCache } from '../utils/fetch-loop';
 import tuple from 'immutable-tuple';
@@ -63,6 +63,8 @@ export default function TradeForm({
   const { wallet, connected } = useWallet();
   const sendConnection = useSendConnection();
   const markPrice = useMarkPrice();
+  useFeeDiscountKeys();
+  const { storedFeeDiscountKey: feeDiscountKey } = useLocallyStoredFeeDiscountKey();
 
   const [postOnly, setPostOnly] = useState(false);
   const [ioc, setIoc] = useState(false);
@@ -97,6 +99,35 @@ export default function TradeForm({
     updateSizeFraction();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [price, baseSize]);
+
+  useEffect(() => {
+    const warmUpCache = async () => {
+      try {
+        if (!wallet || !wallet.publicKey || !market) {
+          console.log(`Skipping refreshing accounts`);
+          return;
+        }
+        const startTime = getUnixTs();
+        console.log(`Refreshing accounts for ${market.address}`);
+        await market?.findOpenOrdersAccountsForOwner(
+          sendConnection,
+          wallet.publicKey,
+        );
+        await market?.findBestFeeDiscountKey(sendConnection, wallet.publicKey);
+        const endTime = getUnixTs();
+        console.log(
+          `Finished refreshing accounts for ${market.address} after ${
+            endTime - startTime
+          }`,
+        );
+      } catch (e) {
+        console.log(`Encountered error when refreshing trading accounts: ${e}`);
+      }
+    };
+    warmUpCache();
+    const id = setInterval(warmUpCache, 30_000);
+    return () => clearInterval(id);
+  }, [market, sendConnection, wallet, wallet.publicKey]);
 
   const onSetBaseSize = (baseSize: number | undefined) => {
     setBaseSize(baseSize);
@@ -221,6 +252,7 @@ export default function TradeForm({
         wallet,
         baseCurrencyAccount: baseCurrencyAccount?.pubkey,
         quoteCurrencyAccount: quoteCurrencyAccount?.pubkey,
+        feeDiscountPubkey: feeDiscountKey
       });
       refreshCache(tuple('getTokenAccounts', wallet, connected));
       setPrice(undefined);

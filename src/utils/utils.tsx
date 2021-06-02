@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
-import { PublicKey } from '@solana/web3.js';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { PublicKey, Connection, AccountInfo } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import BN from 'bn.js';
+import { Market, MARKETS } from '@project-serum/serum';
+import { MAINNET_ENDPOINT } from './connection';
+
+// @ts-ignore
+const dexProgramId = MARKETS?.find(({ deprecated }) => !deprecated).programId;
 
 export function isValidPublicKey(key) {
   if (!key) {
@@ -39,8 +45,18 @@ export function roundToDecimal(
 }
 
 export function getDecimalCount(value): number {
-  if (!isNaN(value) && Math.floor(value) !== value)
+  if (
+    !isNaN(value) &&
+    Math.floor(value) !== value &&
+    value.toString().includes('.')
+  )
     return value.toString().split('.')[1].length || 0;
+  if (
+    !isNaN(value) &&
+    Math.floor(value) !== value &&
+    value.toString().includes('e')
+  )
+    return parseInt(value.toString().split('e-')[1] || '0');
   return 0;
 }
 
@@ -111,7 +127,7 @@ export function useLocalStorageState<T = any>(
     JSON.stringify(defaultState),
   );
   return [
-    stringState && JSON.parse(stringState),
+    useMemo(() => stringState && JSON.parse(stringState), [stringState]),
     (newState) => setStringState(JSON.stringify(newState)),
   ];
 }
@@ -132,7 +148,7 @@ export function useListener(emitter, eventName) {
   }, [emitter, eventName]);
 }
 
-export function abbreviateAddress(address, size = 4) {
+export function abbreviateAddress(address: PublicKey, size = 4) {
   const base58 = address.toBase58();
   return base58.slice(0, size) + '…' + base58.slice(-size);
 }
@@ -150,3 +166,85 @@ export function isEqual(obj1, obj2, keys) {
   }
   return true;
 }
+
+export const useTokenAccounts = (owner: PublicKey, connection: Connection) => {
+  const [tokenAccounts, setTokenAccounts] = useState<Array<string>>([]);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    let filter = { programId: TOKEN_PROGRAM_ID };
+    const get = async () => {
+      if (!owner || !connection) {
+        return;
+      } else {
+        const accounts = await connection.getTokenAccountsByOwner(
+          owner,
+          filter,
+        );
+
+        for (let i = 0; i < accounts.value.length; i++) {
+          const balance = await connection.getTokenAccountBalance(
+            accounts.value[i].pubkey,
+          );
+          const info = await connection.getParsedAccountInfo(
+            accounts.value[i].pubkey,
+          );
+          if (balance.value.uiAmount > 1) {
+            setTokenAccounts((prev) => [
+              ...prev,
+              // @ts-ignore
+              info.value?.data.parsed.info.mint,
+            ]);
+          }
+        }
+      }
+      setLoaded(true);
+    };
+    get();
+  }, [owner]);
+  return { balances: tokenAccounts, loaded };
+};
+
+export const rpcRequest = async (method: string, params: any) => {
+  try {
+    let response = await fetch(MAINNET_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: method,
+        params: params,
+      }),
+    });
+    if (!response.ok) {
+      return [];
+    }
+    if (response.status !== 200 || !response.ok) {
+      throw new Error(`Error rpcRequest `);
+    }
+    let json = await response.json();
+    return json.result;
+  } catch (err) {
+    console.error(err);
+    throw new Error(`Error rpcRequest = ${err}`);
+  }
+};
+
+export const isValidMarket = async (
+  connection: Connection,
+  marketAddress: string,
+) => {
+  try {
+    const market = await Market.load(
+      connection,
+      new PublicKey(marketAddress),
+      {},
+      dexProgramId,
+    );
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
